@@ -1,0 +1,1858 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MTG Deck Builder</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .card-image {
+            transition: transform 0.2s;
+            object-fit: contain;
+            height: 100%;
+            width: 100%;
+        }
+
+        .card-image-container {
+            height: 380px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #1a1a1a;
+            border-radius: 0.5rem 0.5rem 0 0;
+            overflow: hidden;
+        }
+
+        .card-image:hover {
+            transform: scale(1.03);
+            z-index: 10;
+        }
+
+        .mana-icon {
+            width: 20px;
+            height: 20px;
+            display: inline-block;
+            background-size: contain;
+            background-repeat: no-repeat;
+        }
+
+        .deck-card:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+
+        .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        .vendor-logo {
+            height: 24px;
+            width: auto;
+            margin-right: 8px;
+        }
+
+        .price-badge {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background-color: #f59e0b;
+            color: white;
+            border-radius: 9999px;
+            padding: 2px 6px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .vendor-link {
+            position: relative;
+        }
+
+        .hover-preview {
+            position: fixed;
+            pointer-events: none;
+            z-index: 100;
+            width: 250px;
+            transform: translate(20px, -50%);
+            opacity: 0;
+            transition: opacity 0.2s;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+            .hover-preview.visible {
+                opacity: 1;
+            }
+
+            .hover-preview img {
+                width: 100%;
+                height: auto;
+            }
+
+        .mana-cost-filter {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+            .mana-cost-filter.active {
+                background-color: #8b5cf6;
+                color: white;
+                transform: scale(1.1);
+            }
+
+            .mana-cost-filter.inactive {
+                background-color: #374151;
+                color: #9ca3af;
+            }
+
+            .mana-cost-filter:hover:not(.active) {
+                background-color: #4b5563;
+                color: white;
+            }
+
+        .login-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .login-form {
+            background-color: #1f2937;
+            padding: 2rem;
+            border-radius: 0.5rem;
+            width: 100%;
+            max-width: 400px;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+    <!-- Hover Preview Element -->
+    <div id="hoverPreview" class="hover-preview">
+        <img id="hoverPreviewImage" src="" alt="Card Preview">
+    </div>
+
+    <!-- Login Modal -->
+    <div id="loginModal" class="login-modal hidden">
+        <div class="login-form">
+            <h2 class="text-2xl font-bold mb-6 text-center text-purple-400">MTG Deck Builder</h2>
+            <div id="loginTab" class="mb-6">
+                <div class="flex border-b border-gray-600 mb-4">
+                    <button id="loginTabBtn" class="flex-1 py-2 font-medium border-b-2 border-purple-500">Login</button>
+                    <button id="registerTabBtn" class="flex-1 py-2 font-medium text-gray-400">Register</button>
+                </div>
+                <div id="loginForm">
+                    <div class="mb-4">
+                        <label class="block text-gray-300 mb-2">Email</label>
+                        <input type="email" id="loginEmail" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                    </div>
+                    <div class="mb-6">
+                        <label class="block text-gray-300 mb-2">Password</label>
+                        <input type="password" id="loginPassword" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                    </div>
+                    <button id="loginBtn" class="w-full bg-purple-600 hover:bg-purple-700 text-white py-2 rounded-lg mb-4">Login</button>
+                    <div id="loginError" class="text-red-400 text-sm text-center hidden"></div>
+                </div>
+                <div id="registerForm" class="hidden">
+                    <div class="mb-4">
+                        <label class="block text-gray-300 mb-2">Username</label>
+                        <input type="text" id="registerUsername" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-gray-300 mb-2">Email</label>
+                        <input type="email" id="registerEmail" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                    </div>
+                    <div class="mb-6">
+                        <label class="block text-gray-300 mb-2">Password</label>
+                        <input type="password" id="registerPassword" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                    </div>
+                    <button id="registerBtn" class="w-full bg-purple-600 hover:bg-purple-700 text-white py-2 rounded-lg mb-4">Register</button>
+                    <div id="registrationError" class="text-red-400 text-sm text-center hidden"></div>
+                </div>
+            </div>
+            <div id="loggedInView" class="hidden">
+                <div class="text-center mb-6">
+                    <p class="text-lg">Welcome back, <span id="loggedInUsername" class="font-bold text-purple-400"></span>!</p>
+                </div>
+                <div class="mb-4">
+                    <button id="loadDecksBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg mb-2">Load My Decks</button>
+                </div>
+                <div class="mb-4">
+                    <button id="logoutBtn" class="w-full bg-gray-600 hover:bg-gray-700 text-white py-2 rounded-lg">Logout</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container mx-auto px-4 py-8">
+        <!-- Header -->
+        <header class="mb-8">
+            <div class="flex justify-between items-center">
+                <h1 class="text-3xl font-bold text-purple-400">MTG Deck Builder</h1>
+                <div class="flex space-x-4">
+                    <div class="flex space-x-4">
+                        <button id="userBtn" class="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg">
+                            <i class="fas fa-user mr-2"></i>Account
+                        </button>
+                        <a href="/decks" id="myDecksBtn" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg hidden inline-flex">
+                            <i class="fas fa-folder-open mr-2"></i>My Decks
+                        </a>
+                        <button id="newDeckBtn" class="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-lg">
+                            <i class="fas fa-plus mr-2"></i>New Deck
+                        </button>
+                        <button id="saveDeckBtn" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg">
+                            <i class="fas fa-save mr-2"></i>Save Deck
+                        </button>
+                    </div>
+                    <button id="shareDeckBtn" class="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg">
+                        <i class="fas fa-share-alt mr-2"></i>Share
+                    </button>
+                </div>
+            </div>
+            <p class="text-gray-400 mt-2">Build, analyze and share your Magic: The Gathering decks</p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Search Section -->
+            <div class="lg:col-span-2">
+                <div class="bg-gray-800 rounded-lg p-6 shadow-lg">
+                    <h2 class="text-xl font-semibold mb-4 text-purple-300">Card Search</h2>
+
+                    <!-- Search Form -->
+                    <div class="mb-6">
+                        <div class="flex">
+                            <input type="text" id="searchInput" placeholder="Search for cards..."
+                                   class="flex-grow bg-gray-700 border border-gray-600 rounded-l-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                            <button id="searchBtn" class="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-r-lg">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+
+                        <div class="flex flex-wrap gap-4 mt-4">
+                            <!-- Color Filter -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-300 mb-1">Colors</label>
+                                <div class="flex space-x-2">
+                                    <button class="color-filter w-8 h-8 rounded-full bg-white border-2 border-gray-300" data-color="W"></button>
+                                    <button class="color-filter w-8 h-8 rounded-full bg-blue-600 border-2 border-gray-300" data-color="U"></button>
+                                    <button class="color-filter w-8 h-8 rounded-full bg-black border-2 border-gray-300" data-color="B"></button>
+                                    <button class="color-filter w-8 h-8 rounded-full bg-red-600 border-2 border-gray-300" data-color="R"></button>
+                                    <button class="color-filter w-8 h-8 rounded-full bg-green-600 border-2 border-gray-300" data-color="G"></button>
+                                    <button class="color-filter w-8 h-8 rounded-full bg-gray-400 border-2 border-gray-300" data-color="C">C</button>
+                                </div>
+                            </div>
+
+                            <!-- Type Filter -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-300 mb-1">Type</label>
+                                <select id="typeFilter" class="bg-gray-700 border border-gray-600 rounded-lg px-3 py-1 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                                    <option value="">Any</option>
+                                    <option value="creature">Creature</option>
+                                    <option value="instant">Instant</option>
+                                    <option value="sorcery">Sorcery</option>
+                                    <option value="enchantment">Enchantment</option>
+                                    <option value="artifact">Artifact</option>
+                                    <option value="planeswalker">Planeswalker</option>
+                                    <option value="battle">Battle</option>
+                                    <option value="land">Land</option>
+                                </select>
+                            </div>
+
+                            <!-- Rarity Filter -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-300 mb-1">Rarity</label>
+                                <select id="rarityFilter" class="bg-gray-700 border border-gray-600 rounded-lg px-3 py-1 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                                    <option value="">Any</option>
+                                    <option value="common">Common</option>
+                                    <option value="uncommon">Uncommon</option>
+                                    <option value="rare">Rare</option>
+                                    <option value="mythic">Mythic</option>
+                                </select>
+                            </div>
+
+                            <!-- Mana Cost Filter -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-300 mb-1">Mana Cost</label>
+                                <div class="flex flex-wrap gap-1">
+                                    <button class="mana-cost-filter inactive" data-cmc="0">0</button>
+                                    <button class="mana-cost-filter inactive" data-cmc="1">1</button>
+                                    <button class="mana-cost-filter inactive" data-cmc="2">2</button>
+                                    <button class="mana-cost-filter inactive" data-cmc="3">3</button>
+                                    <button class="mana-cost-filter inactive" data-cmc="4">4</button>
+                                    <button class="mana-cost-filter inactive" data-cmc="5">5</button>
+                                    <button class="mana-cost-filter inactive" data-cmc="6">6</button>
+                                    <button class="mana-cost-filter inactive" data-cmc="7">7+</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Search Results -->
+                    <div>
+                        <h3 class="text-lg font-medium mb-3">Search Results</h3>
+                        <div id="searchResults" class="grid grid-cols-1 md:grid-cols-3 gap-4 max-h-[600px] overflow-y-auto scrollbar-hide">
+                            <!-- Cards will be loaded here -->
+                            <div class="text-center text-gray-500 py-10 col-span-full">
+                                <i class="fas fa-search fa-2x mb-2"></i>
+                                <p>Search for cards to begin</p>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-center mt-4">
+                            <button id="prevPageBtn" class="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-l-lg" disabled>
+                                <i class="fas fa-chevron-left"></i>
+                            </button>
+                            <div class="bg-gray-700 px-4 py-2">
+                                <span id="currentPage">1</span>
+                            </div>
+                            <button id="nextPageBtn" class="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-r-lg" disabled>
+                                <i class="fas fa-chevron-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Deck Section -->
+            <div>
+                <div class="bg-gray-800 rounded-lg p-6 shadow-lg sticky top-4">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-semibold text-purple-300">Current Deck</h2>
+                        <span id="deckCount" class="bg-gray-700 px-3 py-1 rounded-full">0 cards</span>
+                    </div>
+
+                    <div class="mb-4">
+                        <input type="text" id="deckName" placeholder="Untitled Deck"
+                               class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 mb-2 focus:outline-none focus:ring-2 focus:ring-purple-500">
+
+                        <select id="deckFormat" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                            <option value="standard">Standard</option>
+                            <option value="modern">Modern</option>
+                            <option value="pioneer">Pioneer</option>
+                            <option value="legacy">Legacy</option>
+                            <option value="vintage">Vintage</option>
+                            <option value="commander">Commander</option>
+                            <option value="pauper">Pauper</option>
+                            <option value="brawl">Brawl</option>
+                            <option value="historic">Historic</option>
+                            <option value="alchemy">Alchemy</option>
+                            <option value="explorer">Explorer</option>
+                            <option value="casual">Casual</option>
+                        </select>
+                    </div>
+
+                    <!-- Deck Stats -->
+                    <div class="bg-gray-700 rounded-lg p-4 mb-4">
+                        <div class="flex justify-between items-center mb-2">
+                            <h3 class="font-medium">Deck Stats</h3>
+                            <div id="totalCards" class="text-sm text-gray-300">Total: 0 cards</div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <h4 class="text-sm text-gray-400">Color Distribution</h4>
+                                <div class="h-32">
+                                    <canvas id="colorPieChart"></canvas>
+                                </div>
+                            </div>
+                            <div>
+                                <h4 class="text-sm text-gray-400">Mana Curve</h4>
+                                <div class="h-32">
+                                    <canvas id="manaCurveChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-3 gap-2 text-center">
+                            <div class="bg-gray-600 p-2 rounded">
+                                <div class="text-sm text-gray-300">Creatures</div>
+                                <div id="creatureCount" class="font-bold">0</div>
+                            </div>
+                            <div class="bg-gray-600 p-2 rounded">
+                                <div class="text-sm text-gray-300">Spells</div>
+                                <div id="spellCount" class="font-bold">0</div>
+                            </div>
+                            <div class="bg-gray-600 p-2 rounded">
+                                <div class="text-sm text-gray-300">Lands</div>
+                                <div id="landCount" class="font-bold">0</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Deck List -->
+
+                    <!-- Commander section -->
+                    <div id="commanderSection" class="hidden mb-4">
+                        <div class="flex justify-between items-center mb-2">
+                            <h3 class="font-medium text-purple-300">Commanders</h3>
+                            <span id="commanderCount" class="bg-gray-700 px-3 py-1 rounded-full">0 cards</span>
+                        </div>
+                        <div id="commanderList" class="bg-gray-700 rounded-lg max-h-64 overflow-y-auto scrollbar-hide">
+                            <div class="text-center text-gray-500 py-10">
+                                <i class="fas fa-user-ninja fa-2x mb-2"></i>
+                                <p>Your commander area is empty</p>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- End of Commander Section -->
+
+
+
+                    <div class="mb-4">
+                        <h3 class="font-medium mb-2">Deck List</h3>
+                        <div id="deckList" class="bg-gray-700 rounded-lg max-h-64 overflow-y-auto scrollbar-hide">
+                            <div class="text-center text-gray-500 py-10">
+                                <i class="fas fa-folder-open fa-2x mb-2"></i>
+                                <p>Your deck is empty</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sideboard -->
+                    <div>
+                        <h3 class="font-medium mb-2">Sideboard <span id="sideboardCount" class="text-sm text-gray-400">(0 cards)</span></h3>
+                        <div id="sideboardList" class="bg-gray-700 rounded-lg max-h-64 overflow-y-auto scrollbar-hide">
+                            <div class="text-center text-gray-500 py-10">
+                                <i class="fas fa-exchange-alt fa-2x mb-2"></i>
+                                <p>Your sideboard is empty</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Card Modal -->
+    <div id="cardModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 hidden">
+        <div class="bg-gray-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center p-4 border-b border-gray-700">
+                <h3 id="modalCardName" class="text-xl font-semibold"></h3>
+                <button id="closeModalBtn" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="p-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <div class="card-image-container mb-4">
+                            <img id="modalCardImage" src="" alt="Card" class="card-image">
+                        </div>
+                        <div class="flex flex-wrap justify-center gap-4">
+                            <a id="scryfallLink" target="_blank" class="vendor-link bg-gray-700 hover:bg-gray-700 px-4 py-2 rounded-lg flex items-center">
+                                <img src="https://scryfall.com/favicon.ico" class="vendor-logo"> Scryfall
+                            </a>
+                            <a id="tcgplayerLink" target="_blank" class="vendor-link bg-orange-600 hover:bg-orange-700 p-4 py-2 rounded-md border flex items-center">
+                        <img src="https://www.tcgplayer.com/favicon.ico" class="vendor-logo"> TCG Player
+                        <span id="tcgplayerPrice" class="price-badge hidden">$0.00</span>
+                    </a>
+                            <a id="cardkingdomLink" target="_blank" class="vendor-link bg-blue-600 hover:bg-blue-700 p-4 py-2 rounded-md border flex items-center">
+                        <img src="https://www.cardkingdom.com/favicon.ico" class="vendor-logo"> Card Kingdom
+                                <span id="cardkingdomPrice" class="price-badge hidden">$0.00</span>
+                        </a>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex items-center mb-4">
+                            <div id="modalCardManaCost" class="flex-grow"></div>
+                            <span id="modalCardType" class="bg-gray-700 px-3 py-1 rounded-full text-sm"></span>
+                        </div>
+                        <div id="modalCardText" class="bg-gray-700 p-4 rounded-lg mb-4"></div>
+                        <div class="grid grid-cols-2 gap-2 mb-4">
+                            <div>
+                                <span class="text-sm text-gray-400">Set:</span>
+                                <span id="modalCardSet" class="block font-medium"></span>
+                            </div>
+                            <div>
+                                <span class="text-sm text-gray-400">Rarity:</span>
+                                <span id="modalCardRarity" class="block font-medium"></span>
+                            </div>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button id="addToDeckBtn" class="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-lg">
+                                <i class="fas fa-plus mr-2"></i>Add to Deck
+                            </button>
+                            <button id="addCommanderBtn" class="bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded-lg hidden">
+                                <i class="fas fa-user-ninja mr-2"></i>Add as Commander
+                            </button>
+                        </div>
+                        <div class="flex space-x-2 mt-2">
+                            <button id="addFourToDeckBtn" class="bg-blue-600 hover:blue-purple-700 px-4 py-2 rounded-lg w-full">
+                                <i class="fas fa-layer-group mr-2"></i>Add 4
+                            </button>
+                        </div>
+                        <div class="flex space-x-2 mt-2">
+                            <button id="addToSideboardBtn" class="bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded-lg w-full">
+                                <i class="fas fa-exchange-alt mr-2"></i>Add to Sideboard
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let currentDeck = [];
+        let currentSideboard = [];
+        let currentPage = 1;
+        let totalPages = 1;
+        let selectedColors = [];
+        let selectedCard = null;
+        let selectedCMC = [];
+        let currentUser = null;
+        let currentCommander = [];
+        const maxCommanders = 2
+        let userDecks = [];
+
+        // DOM Elements
+        const searchInput = document.getElementById('searchInput');
+        const searchBtn = document.getElementById('searchBtn');
+        const searchResults = document.getElementById('searchResults');
+        const deckList = document.getElementById('deckList');
+        const sideboardList = document.getElementById('sideboardList');
+        const deckCount = document.getElementById('deckCount');
+        const sideboardCount = document.getElementById('sideboardCount');
+        const deckName = document.getElementById('deckName');
+        const deckFormat = document.getElementById('deckFormat');
+        const prevPageBtn = document.getElementById('prevPageBtn');
+        const nextPageBtn = document.getElementById('nextPageBtn');
+        const currentPageSpan = document.getElementById('currentPage');
+        const colorFilters = document.querySelectorAll('.color-filter');
+        const typeFilter = document.getElementById('typeFilter');
+        const rarityFilter = document.getElementById('rarityFilter');
+        const cmcFilters = document.querySelectorAll('.mana-cost-filter');
+        const newDeckBtn = document.getElementById('newDeckBtn');
+        const saveDeckBtn = document.getElementById('saveDeckBtn');
+        const shareDeckBtn = document.getElementById('shareDeckBtn');
+        const cardModal = document.getElementById('cardModal');
+        const closeModalBtn = document.getElementById('closeModalBtn');
+        const modalCardName = document.getElementById('modalCardName');
+        const modalCardImage = document.getElementById('modalCardImage');
+        const modalCardManaCost = document.getElementById('modalCardManaCost');
+        const modalCardType = document.getElementById('modalCardType');
+        const modalCardText = document.getElementById('modalCardText');
+        const modalCardSet = document.getElementById('modalCardSet');
+        const modalCardRarity = document.getElementById('modalCardRarity');
+        const addToDeckBtn = document.getElementById('addToDeckBtn');
+        const addCommanderBtn = document.getElementById('addCommanderBtn');
+        const addFourToDeckBtn = document.getElementById('addFourToDeckBtn');
+        const addToSideboardBtn = document.getElementById('addToSideboardBtn');
+        const creatureCount = document.getElementById('creatureCount');
+        const spellCount = document.getElementById('spellCount');
+        const landCount = document.getElementById('landCount');
+        const totalCards = document.getElementById('totalCards');
+        const scryfallLink = document.getElementById('scryfallLink');
+        const tcgplayerLink = document.getElementById('tcgplayerLink');
+        const cardkingdomLink = document.getElementById('cardkingdomLink');
+        const tcgplayerPrice = document.getElementById('tcgplayerPrice');
+        const cardkingdomPrice = document.getElementById('cardkingdomPrice');
+        const hoverPreview = document.getElementById('hoverPreview');
+        const hoverPreviewImage = document.getElementById('hoverPreviewImage');
+        const loginModal = document.getElementById('loginModal');
+        const loginTabBtn = document.getElementById('loginTabBtn');
+        const registerTabBtn = document.getElementById('registerTabBtn');
+        const loginForm = document.getElementById('loginForm');
+        const registerForm = document.getElementById('registerForm');
+        const loginBtn = document.getElementById('loginBtn');
+        const registerBtn = document.getElementById('registerBtn');
+        const loginEmail = document.getElementById('loginEmail');
+        const loginPassword = document.getElementById('loginPassword');
+        const registerUsername = document.getElementById('registerUsername');
+        const registerEmail = document.getElementById('registerEmail');
+        const registerPassword = document.getElementById('registerPassword');        
+        const loginError = document.getElementById('loginError');
+        const registerError = document.getElementById('registerError');
+        const loggedInView = document.getElementById('loggedInView');
+        const loggedInUsername = document.getElementById('loggedInUsername');
+        const loadDecksBtn = document.getElementById('loadDecksBtn');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const userBtn = document.getElementById('userBtn');
+        const commanderList = document.getElementById('commanderList');
+        const commanderCount = document.getElementById('commanderCount');
+        const commanderSection = document.getElementById('commanderSection');
+        const myDecksBtn = document.getElementById('myDecksBtn');
+        const myDecksDiv = document.createElement('div');
+        myDecksDiv.id = 'my-decks';
+
+        // Charts
+        const colorPieChart = new Chart(
+            document.getElementById('colorPieChart'),
+            {
+                type: 'pie',
+                data: {
+                    labels: ['White', 'Blue', 'Black', 'Red', 'Green', 'Colorless'],
+                    datasets: [{
+                        data: [0, 0, 0, 0, 0, 0],
+                        backgroundColor: [
+                            '#FFFFFF',
+                            '#0078D7',
+                            '#000000',
+                            '#D13438',
+                            '#107C10',
+                            '#AAAAAA'
+                        ],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            }
+        );
+
+        const manaCurveChart = new Chart(
+            document.getElementById('manaCurveChart'),
+            {
+                type: 'bar',
+                data: {
+                    labels: ['0', '1', '2', '3', '4', '5', '6+'],
+                    datasets: [{
+                        data: [0, 0, 0, 0, 0, 0, 0],
+                        backgroundColor: '#8b5cf6',
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            },
+                            ticks: {
+                                color: 'rgba(255, 255, 255, 0.7)'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            },
+                            ticks: {
+                                color: 'rgba(255, 255, 255, 0.7)'
+                            }
+                        }
+                    }
+                }
+            }
+        );
+
+        // Event Listeners
+        searchBtn.addEventListener('click', () => {
+            currentPage = 1;
+            searchCards();
+        });
+
+        searchInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                currentPage = 1;
+                searchCards();
+            }
+        });
+
+        prevPageBtn.addEventListener('click', () => {
+            if (currentPage > 1) {
+                currentPage--;
+                searchCards();
+            }
+        });
+
+        nextPageBtn.addEventListener('click', () => {
+            if (currentPage < totalPages) {
+                currentPage++;
+                searchCards();
+            }
+        });
+
+        colorFilters.forEach(filter => {
+            filter.addEventListener('click', () => {
+                const color = filter.dataset.color;
+                if (selectedColors.includes(color)) {
+                    selectedColors = selectedColors.filter(c => c !== color);
+                    filter.classList.remove('border-purple-400', 'ring-2', 'ring-purple-500');
+                } else {
+                    selectedColors.push(color);
+                    filter.classList.add('border-purple-400', 'ring-2', 'ring-purple-500');
+                }
+                currentPage = 1;
+                searchCards();
+            });
+        });
+
+        cmcFilters.forEach(filter => {
+            filter.addEventListener('click', () => {
+                const cmc = filter.dataset.cmc;
+                if (selectedCMC.includes(cmc)) {
+                    selectedCMC = selectedCMC.filter(c => c !== cmc);
+                    filter.classList.remove('active');
+                    filter.classList.add('inactive');
+                } else {
+                    selectedCMC.push(cmc);
+                    filter.classList.remove('inactive');
+                    filter.classList.add('active');
+                }
+                currentPage = 1;
+                searchCards();
+            });
+        });
+
+        newDeckBtn.addEventListener('click', newDeck);
+        saveDeckBtn.addEventListener('click', saveDeck);
+        shareDeckBtn.addEventListener('click', shareDeck);
+        closeModalBtn.addEventListener('click', () => cardModal.classList.add('hidden'));
+        addToDeckBtn.addEventListener('click', () => {
+            if(deckFormat.value === 'commander' && currentCommander.length < maxCommanders){
+                addToCommander(selectedCard, 1);
+            } else {
+                addToDeck(selectedCard, 1);
+            }
+        });
+        addCommanderBtn.addEventListener('click', () => {
+            if(deckFormat.value === 'commander' && currentCommander.length < maxCommanders){
+                addToCommander(selectedCard, 1);
+            } else {
+                addToDeck(selectedCard, 1);
+            }
+        });
+        addFourToDeckBtn.addEventListener('click', () => addToDeck(selectedCard, 4));
+        addToSideboardBtn.addEventListener('click', () => addToSideboard(selectedCard, 1));
+
+        // User account event listeners
+        userBtn.addEventListener('click', toggleLoginModal);
+        loginTabBtn.addEventListener('click', () => {
+            loginForm.classList.remove('hidden');
+            registerForm.classList.add('hidden');
+            loginTabBtn.classList.add('border-purple-500');
+            registerTabBtn.classList.remove('border-purple-500');
+            loginTabBtn.classList.remove('text-gray-400');
+            registerTabBtn.classList.add('text-gray-400');
+        });
+        registerTabBtn.addEventListener('click', () => {
+            loginForm.classList.add('hidden');
+            registerForm.classList.remove('hidden');
+            loginTabBtn.classList.remove('border-purple-500');
+            registerTabBtn.classList.add('border-purple-500');
+            loginTabBtn.classList.add('text-gray-400');
+            registerTabBtn.classList.remove('text-gray-400');
+        });
+        loginBtn.addEventListener('click', handleLogin);
+        registerBtn.addEventListener('click', handleRegister);
+        loadDecksBtn.addEventListener('click', loadUserDecks);
+        loadDecksBtn.addEventListener('click', () => console.log('Loading decks'));
+        logoutBtn.addEventListener('click', handleLogout);
+
+        myDecksBtn.addEventListener('click', loadDecks);
+
+        // Close modal when clicking outside
+        cardModal.addEventListener('click', (e) => {
+            if (e.target === cardModal) {
+                cardModal.classList.add('hidden');
+            }
+        });
+
+        loginModal.addEventListener('click', (e) => {
+            if (e.target === loginModal) {
+                loginModal.classList.add('hidden');
+            }
+        });
+
+        // Hover preview events
+        document.addEventListener('mousemove', (e) => {
+            hoverPreview.style.left = `${e.clientX}px`;
+            hoverPreview.style.top = `${e.clientY}px`;
+        });
+
+        // Check URL for shared deck
+        window.addEventListener('load', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const deckId = urlParams.get('deck');
+
+            deckFormat.addEventListener('change', () => {
+                if (deckFormat.value === 'commander') {
+                    commanderSection.classList.remove('hidden');
+                } else {
+                    commanderSection.classList.add('hidden');
+                }
+            });
+            if (deckId) {
+                loadSharedDeck(deckId);
+            } else {
+                newDeck();
+            }
+
+            // Check if user is logged in
+            checkAuthStatus();
+        });
+
+        // Functions
+        function searchCards() {
+            let query = searchInput.value.trim();
+            let colorQuery = selectedColors.length > 0 ? `color=${selectedColors.join('')}` : '';
+            let typeQuery = typeFilter.value ? `type=${typeFilter.value}` : '';
+            let rarityQuery = rarityFilter.value ? `rarity=${rarityFilter.value}` : '';
+
+            // Build CMC query
+            let cmcQuery = '';
+            if (selectedCMC.length > 0) {
+                const cmcConditions = selectedCMC.map(cmc => {
+                    if (cmc === '7') {
+                        return 'cmc>=7';
+                    } else {
+                        return `cmc=${cmc}`;
+                    }
+                });
+                cmcQuery = cmcConditions.join(' or ');
+            }
+
+            let url = `https://api.scryfall.com/cards/search?q=${encodeURIComponent(query)}`;
+
+            if (colorQuery) url += `+${colorQuery}`;
+            if (typeQuery) url += `+${typeQuery}`;
+            if (rarityQuery) url += `+${rarityQuery}`;
+            if (cmcQuery) url += `+(${cmcQuery})`;
+
+            url += `&page=${currentPage}`;
+
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.object === 'error') {
+                        searchResults.innerHTML = `
+                            <div class="text-center text-gray-500 py-10 col-span-full">
+                                <i class="fas fa-exclamation-circle fa-2x mb-2"></i>
+                                <p>${data.details}</p>
+                            </div>
+                        `;
+                        prevPageBtn.disabled = true;
+                        nextPageBtn.disabled = true;
+                        return;
+                    }
+
+                    totalPages = data.total_cards ? Math.ceil(data.total_cards / data.per_page) : 1;
+                    currentPageSpan.textContent = currentPage;
+                    prevPageBtn.disabled = currentPage <= 1;
+                    nextPageBtn.disabled = currentPage >= totalPages;
+
+                    displaySearchResults(data.data);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    searchResults.innerHTML = `
+                        <div class="text-center text-gray-500 py-10 col-span-full">
+                            <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                            <p>Error loading cards. Please try again.</p>
+                        </div>
+                    `;
+                    prevPageBtn.disabled = true;
+                    nextPageBtn.disabled = true;
+                });
+        }
+
+        function displaySearchResults(cards) {
+            searchResults.innerHTML = '';
+
+            if (cards.length === 0) {
+                searchResults.innerHTML = `
+                    <div class="text-center text-gray-500 py-10 col-span-full">
+                        <i class="fas fa-search fa-2x mb-2"></i>
+                        <p>No cards found</p>
+                    </div>
+                `;
+                return;
+            }
+
+            cards.forEach(card => {
+                const cardElement = document.createElement('div');
+                cardElement.className = 'cursor-pointer';
+                cardElement.innerHTML = `
+                    <div class="bg-gray-700 rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow">
+                        <div class="card-image-container">
+                            <img src="${card.image_uris ? card.image_uris.normal : card.card_faces[0].image_uris.normal}"
+                                 alt="${card.name}"
+                                 class="card-image"
+                                 data-card='${JSON.stringify(card)}'>
+                        </div>
+                        <div class="p-3">
+                            <h4 class="font-medium truncate">${card.name}</h4>
+                            <div class="flex justify-between items-center mt-1">
+                                <div class="text-sm text-gray-400">${card.type_line}</div>
+                                <div class="flex items-center">
+                                    ${renderManaCost(card.mana_cost)}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                cardElement.addEventListener('click', (e) => {
+                    if (!e.target.closest('button')) {
+                        const cardData = card.image_uris ? card : card.card_faces[0]; // Fallback for double-faced cards
+                        selectedCard = card;
+                        showCardModal(selectedCard);
+                    }
+                });
+
+                searchResults.appendChild(cardElement);
+            });
+        }
+
+        function renderManaCost(manaCost) {
+            if (!manaCost) return '';
+
+            const symbols = manaCost.match(/\{[^}]+\}/g) || [];
+            return symbols.map(symbol => {
+                const cost = symbol.replace(/[{}]/g, '').toLowerCase();
+                let colorClass = '';
+
+                switch(cost) {
+                    case 'w': colorClass = 'bg-white text-black'; break;
+                    case 'u': colorClass = 'bg-blue-600 text-white'; break;
+                    case 'b': colorClass = 'bg-black text-white'; break;
+                    case 'r': colorClass = 'bg-red-600 text-white'; break;
+                    case 'g': colorClass = 'bg-green-600 text-white'; break;
+                    default: colorClass = 'bg-gray-400 text-black'; break;
+                }
+
+                return `<span class="inline-flex items-center justify-center w-5 h-5 rounded-full text-xs font-bold ${colorClass} mx-px">${cost.toUpperCase()}</span>`;
+            }).join('');
+        }
+
+        function showCardModal(card) {
+            modalCardName.textContent = card.name;
+            modalCardImage.src = card.image_uris ? card.image_uris.normal : card.card_faces[0].image_uris.normal;
+            modalCardManaCost.innerHTML = renderManaCost(card.mana_cost);
+            modalCardType.textContent = card.type_line;
+
+            // Clean up card text (remove reminder text in parentheses)
+            let cardText = card.oracle_text || '';
+            cardText = cardText.replace(/\([^)]*\)/g, '');
+            cardText = cardText.replace(/\n/g, '<br>');
+            modalCardText.innerHTML = cardText;
+
+            modalCardSet.textContent = card.set_name;
+            modalCardRarity.textContent = card.rarity.charAt(0).toUpperCase() + card.rarity.slice(1);
+
+            // Set vendor links
+            scryfallLink.href = `https://scryfall.com/search?q=!"${encodeURIComponent(card.name)}"`;
+            tcgplayerLink.href = `https://www.tcgplayer.com/search/magic/product?productLineName=magic&q=${encodeURIComponent(card.name)}`;
+            cardkingdomLink.href = `https://www.cardkingdom.com/catalog/search?search=header&filter[name]=${encodeURIComponent(card.name)}`;
+
+            // Reset price badges
+            tcgplayerPrice.classList.add('hidden');
+            cardkingdomPrice.classList.add('hidden');
+
+            // Fetch prices from Scryfall
+            fetch(`https://api.scryfall.com/cards/${card.id}`)
+                .then(response => response.json())
+                .then(cardData => {
+                    if (cardData.prices && cardData.prices.usd) {
+                        tcgplayerPrice.textContent = `$${cardData.prices.usd}`;
+                        tcgplayerPrice.classList.remove('hidden');
+                    }
+                    if (cardData.prices && cardData.prices.usd_foil) {
+                        cardkingdomPrice.textContent = `$${cardData.prices.usd_foil}`;
+                        cardkingdomPrice.classList.remove('hidden');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching card prices:', error);
+                });
+
+            cardModal.classList.remove('hidden');
+            
+            if(deckFormat.value === 'commander' && currentCommander.length < maxCommanders){
+                addCommanderBtn.classList.remove('hidden');
+                addToDeckBtn.classList.add('w-1/2');
+                addCommanderBtn.classList.add('w-1/2');
+            }else{
+                addCommanderBtn.classList.add('hidden');
+                addToDeckBtn.classList.remove('w-1/2');
+                addCommanderBtn.classList.remove('w-1/2');
+            }
+        }
+
+        function newDeck() {
+            if ((currentDeck.length > 0 || currentSideboard.length > 0) && !confirm('Are you sure you want to create a new deck? Your current deck and sideboard will be lost.')) {
+                return;
+            }
+
+            currentDeck = [];
+            currentSideboard = [];
+            deckName.value = 'Untitled Deck';
+            deckFormat.value = 'standard';
+            updateDeckDisplay();
+            updateSideboardDisplay();
+        }
+
+        function addToDeck(card, quantity) {
+            // Check if card is already in deck
+            const existingCardIndex = currentDeck.findIndex(c => c.id === card.id);
+
+            if (existingCardIndex >= 0) {
+                // Update quantity
+                currentDeck[existingCardIndex].quantity += quantity;
+
+                // Basic lands can have any number, other cards max 4
+                if (!card.type_line.toLowerCase().includes('basic land') && currentDeck[existingCardIndex].quantity > 4) {
+                    currentDeck[existingCardIndex].quantity = 4;
+                    alert('You can only have 4 copies of a non-basic land card in your deck.');
+                }
+            } else {
+                // Add new card
+                currentDeck.push({
+                    id: card.id,
+                    name: card.name,
+                    image: card.image_uris ? card.image_uris.normal : card.card_faces[0].image_uris.normal,
+                    type: card.type_line,
+                    mana_cost: card.mana_cost,
+                    colors: card.colors || [],
+                    cmc: card.cmc || 0,
+                    quantity: Math.min(quantity, card.type_line.toLowerCase().includes('basic land') ? quantity : 4)
+                });                
+            }
+
+            updateDeckDisplay();
+            cardModal.classList.add('hidden');
+        }
+
+        function addToCommander(card, quantity) {
+
+            if(currentCommander.length >= maxCommanders){
+                return;
+            }
+
+            // Check if card is already in commander
+            const existingCardIndex = currentCommander.findIndex(c => c.id === card.id);
+            if (existingCardIndex >= 0) {
+                // Update quantity
+                currentCommander[existingCardIndex].quantity += quantity;
+            } else {
+                // Add new card
+                currentCommander.push({
+                    id: card.id,
+                    name: card.name,
+                    image: card.image_uris ? card.image_uris.normal : card.card_faces[0].image_uris.normal,
+                    type: card.type_line,
+                    mana_cost: card.mana_cost,
+                    colors: card.colors || [],
+                    cmc: card.cmc || 0,
+                    quantity: quantity
+                });                
+            }
+
+            updateCommanderDisplay();
+            cardModal.classList.add('hidden');
+        }
+
+        function removeFromCommander(cardId) {
+            const cardIndex = currentCommander.findIndex(c => c.id === cardId);
+            if (cardIndex >= 0) {
+                currentCommander.splice(cardIndex, 1);
+            }
+            updateCommanderDisplay();
+        }
+
+        function addToSideboard(card, quantity) {
+            // Check if card is already in sideboard
+            const existingCardIndex = currentSideboard.findIndex(c => c.id === card.id);
+
+            if (existingCardIndex >= 0) {
+                // Update quantity
+                currentSideboard[existingCardIndex].quantity += quantity;              
+            } else {
+                // Add new card to sideboard
+                currentSideboard.push({                    
+                    id: card.id,
+                    name: card.name,
+                    image: card.image_uris ? card.image_uris.normal : card.card_faces[0].image_uris.normal,
+                    type: card.type_line,
+                    mana_cost: card.mana_cost,
+                    colors: card.colors || [],
+                    cmc: card.cmc || 0,                    
+                    quantity: quantity                });
+            }
+
+            updateSideboardDisplay();
+            cardModal.classList.add('hidden');
+        }
+
+        function removeFromDeck(cardId) {
+            const cardIndex = currentDeck.findIndex(c => c.id === cardId);
+
+            if (cardIndex >= 0) {
+                currentDeck[cardIndex].quantity--;
+
+                if (currentDeck[cardIndex].quantity <= 0) {
+                    currentDeck.splice(cardIndex, 1);
+                }
+            }
+
+            updateDeckDisplay();
+        }
+
+        function updateCommanderDisplay() {
+            commanderList.innerHTML = '';
+
+            if (currentCommander.length === 0) {
+                commanderList.innerHTML = `
+                    <div class="text-center text-gray-500 py-10">
+                        <i class="fas fa-user-ninja fa-2x mb-2"></i>
+                        <p>Your commander area is empty</p>
+                    </div>
+                `;
+            } else {
+                currentCommander.sort((a, b) => a.name.localeCompare(b.name));
+                currentCommander.forEach(card => {
+                    const cardElement = document.createElement('div');
+                    cardElement.className = 'deck-card flex items-center justify-between p-2 border-b border-gray-600';
+                    cardElement.innerHTML = `
+                        <div class="flex items-center">
+                            <img src="${card.image}" alt="${card.name}" class="w-10 h-10 rounded mr-3" data-card-image="${card.image}">
+                            <div>
+                                <div class="font-medium">${card.name}</div>
+                                <div class="text-xs text-gray-400">${card.type}</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center">
+                            <button class="remove-from-commander bg-gray-600 hover:bg-gray-500 w-6 h-6 rounded-full flex items-center justify-center" data-card-id="${card.id}">
+                                <i class="fas fa-minus text-xs"></i>
+                            </button>
+                        </div>
+                    `;
+
+                    const imgElement = cardElement.querySelector('img[data-card-image]');
+                    imgElement.addEventListener('mouseenter', (e) => {
+                        hoverPreviewImage.src = e.target.dataset.cardImage;
+                        hoverPreview.classList.add('visible');
+                    });
+                    imgElement.addEventListener('mouseleave', () => {
+                        hoverPreview.classList.remove('visible');
+                    });
+
+                    cardElement.querySelector('.remove-from-commander').addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        removeFromCommander(e.target.closest('button').dataset.cardId);
+                    });
+
+                    commanderList.appendChild(cardElement);
+                });
+            }
+            const totalCommanderCount = currentCommander.reduce((sum, card) => sum + card.quantity, 0);
+            commanderCount.textContent = `${totalCommanderCount} card${totalCommanderCount !== 1 ? 's' : ''}`;
+        }
+
+
+        function removeFromSideboard(cardId) {
+            const cardIndex = currentSideboard.findIndex(c => c.id === cardId);
+
+            if (cardIndex >= 0) {
+                currentSideboard[cardIndex].quantity--;
+
+                if (currentSideboard[cardIndex].quantity <= 0) {
+                    currentSideboard.splice(cardIndex, 1);
+                }
+            }
+
+            updateSideboardDisplay();
+        }
+
+        function updateDeckDisplay() {
+            // Update deck list
+            deckList.innerHTML = '';
+
+            if (currentDeck.length === 0) {
+                deckList.innerHTML = `
+                    <div class="text-center text-gray-500 py-10">
+                        <i class="fas fa-folder-open fa-2x mb-2"></i>
+                        <p>Your deck is empty</p>
+                    </div>
+                `;
+            } else {
+                currentDeck.sort((a, b) => {
+                    // Sort by type: lands -> creatures -> other
+                    const typeA = a.type.toLowerCase();
+                    const typeB = b.type.toLowerCase();
+
+                    if (typeA.includes('land') && !typeB.includes('land')) return -1;
+                    if (!typeA.includes('land') && typeB.includes('land')) return 1;
+                    if (typeA.includes('creature') && !typeB.includes('creature')) return -1;
+                    if (!typeA.includes('creature') && typeB.includes('creature')) return 1;
+                    return a.name.localeCompare(b.name);
+                });
+
+                currentDeck.forEach(card => {
+                    const cardElement = document.createElement('div');
+                    cardElement.className = 'deck-card flex items-center justify-between p-2 border-b border-gray-600';
+                    cardElement.innerHTML = `
+                        <div class="flex items-center">
+                            <img src="${card.image}" alt="${card.name}" class="w-10 h-10 rounded mr-3"
+                                 data-card-image="${card.image}">
+                            <div>
+                                <div class="font-medium">${card.name}</div>
+                                <div class="text-xs text-gray-400">${card.type}</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center">
+                            <button class="remove-from-deck bg-gray-600 hover:bg-gray-500 w-6 h-6 rounded-full flex items-center justify-center"
+                                    data-card-id="${card.id}">
+                                <i class="fas fa-minus text-xs"></i>
+                            </button>
+                            <span class="mx-2 w-6 text-center">${card.quantity}</span>
+                            <button class="add-to-deck bg-gray-600 hover:bg-gray-500 w-6 h-6 rounded-full flex items-center justify-center"
+                                    data-card-id="${card.id}">
+                                <i class="fas fa-plus text-xs"></i>
+                            </button>
+                        </div>
+                    `;
+
+                    // Add hover preview for deck cards
+                    const imgElement = cardElement.querySelector('img[data-card-image]');
+                    imgElement.addEventListener('mouseenter', (e) => {
+                        hoverPreviewImage.src = e.target.dataset.cardImage;
+                        hoverPreview.classList.add('visible');
+                    });
+
+                    imgElement.addEventListener('mouseleave', () => {
+                        hoverPreview.classList.remove('visible');
+                    });
+
+                    cardElement.querySelector('.remove-from-deck').addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        removeFromDeck(e.target.closest('button').dataset.cardId);
+                    });
+
+                    cardElement.querySelector('.add-to-deck').addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const cardId = e.target.closest('button').dataset.cardId;
+                        const cardToAdd = currentDeck.find(c => c.id === cardId);
+
+                        if (cardToAdd) {
+                            // Find the full card data (we'd need to fetch this or store it)
+                            // For simplicity, we'll just increment the quantity
+                            cardToAdd.quantity++;
+
+                           
+                            updateDeckDisplay();
+                        }
+                    });
+
+                    deckList.appendChild(cardElement);
+                });
+            }
+
+            // Update deck count
+            const totalCardsCount = currentDeck.reduce((sum, card) => sum + card.quantity, 0);
+            deckCount.textContent = `${totalCardsCount} card${totalCardsCount !== 1 ? 's' : ''}`;
+            totalCards.textContent = `Total: ${totalCardsCount} cards`;
+
+
+            // Update deck stats
+            updateDeckStats();
+        }
+
+        function updateSideboardDisplay() {
+            // Update sideboard list
+            sideboardList.innerHTML = '';
+
+            if (currentSideboard.length === 0) {
+                sideboardList.innerHTML = `
+                    <div class="text-center text-gray-500 py-10">
+                        <i class="fas fa-exchange-alt fa-2x mb-2"></i>
+                        <p>Your sideboard is empty</p>
+                    </div>
+                `;
+            } else {
+                currentSideboard.sort((a, b) => a.name.localeCompare(b.name));
+
+                currentSideboard.forEach(card => {
+                    const cardElement = document.createElement('div');
+                    cardElement.className = 'deck-card flex items-center justify-between p-2 border-b border-gray-600';
+                    cardElement.innerHTML = `
+                        <div class="flex items-center">
+                            <img src="${card.image}" alt="${card.name}" class="w-10 h-10 rounded mr-3"
+                                 data-card-image="${card.image}">
+                            <div>
+                                <div class="font-medium">${card.name}</div>
+                                <div class="text-xs text-gray-400">${card.type}</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center">
+                            <button class="remove-from-sideboard bg-gray-600 hover:bg-gray-500 w-6 h-6 rounded-full flex items-center justify-center"
+                                    data-card-id="${card.id}">
+                                <i class="fas fa-minus text-xs"></i>
+                            </button>
+                            <span class="mx-2 w-6 text-center">${card.quantity}</span>
+                            <button class="add-to-sideboard bg-gray-600 hover:bg-gray-500 w-6 h-6 rounded-full flex items-center justify-center"
+                                    data-card-id="${card.id}">
+                                <i class="fas fa-plus text-xs"></i>
+                            </button>
+                        </div>
+                    `;
+
+                    // Add hover preview for sideboard cards
+                    const imgElement = cardElement.querySelector('img[data-card-image]');
+                    imgElement.addEventListener('mouseenter', (e) => {
+                        hoverPreviewImage.src = e.target.dataset.cardImage;
+                        hoverPreview.classList.add('visible');
+                    });
+
+                    imgElement.addEventListener('mouseleave', () => {
+                        hoverPreview.classList.remove('visible');
+                    });
+
+                    cardElement.querySelector('.remove-from-sideboard').addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        removeFromSideboard(e.target.closest('button').dataset.cardId);
+                    });
+
+                    cardElement.querySelector('.add-to-sideboard').addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const cardId = e.target.closest('button').dataset.cardId;
+                        const cardToAdd = currentSideboard.find(c => c.id === cardId);
+
+                        if (cardToAdd) {
+                            cardToAdd.quantity++;
+
+                            
+                            updateSideboardDisplay();
+                        }
+                    });
+
+                    sideboardList.appendChild(cardElement);
+                });
+            }
+
+            // Update sideboard count
+            const totalSideboardCards = currentSideboard.reduce((sum, card) => sum + card.quantity, 0);
+            sideboardCount.textContent = `(${totalSideboardCards} card${totalSideboardCards !== 1 ? 's' : ''})`;
+        }
+
+        function updateDeckStats() {
+            // Count card types
+            let creatures = 0;
+            let spells = 0;
+            let lands = 0;
+
+            currentDeck.forEach(card => {
+                if (card.type.toLowerCase().includes('creature')) {
+                    creatures += card.quantity;
+                } else if (card.type.toLowerCase().includes('land')) {
+                    lands += card.quantity;
+                } else {
+                    spells += card.quantity;
+                }
+            });
+
+            creatureCount.textContent = creatures;
+            spellCount.textContent = spells;
+            landCount.textContent = lands;
+
+            // Update color distribution
+            const colorCounts = {
+                W: 0, // White
+                U: 0, // Blue
+                B: 0, // Black
+                R: 0, // Red
+                G: 0, // Green
+                C: 0  // Colorless
+            };
+
+            currentDeck.forEach(card => {
+                if (card.colors && card.colors.length > 0) {
+                    card.colors.forEach(color => {
+                        colorCounts[color] += card.quantity;
+                    });
+                } else if (!card.type.toLowerCase().includes('land')) {
+                    colorCounts.C += card.quantity;
+                } 
+            });
+
+            colorPieChart.data.datasets[0].data = [
+                colorCounts.W,
+                colorCounts.U,
+                colorCounts.B,
+                colorCounts.R,
+                colorCounts.G,
+                colorCounts.C
+            ];
+            colorPieChart.update();
+
+            // Update mana curve
+            const curve = [0, 0, 0, 0, 0, 0, 0]; // 0, 1, 2, 3, 4, 5, 6+
+
+            currentDeck.forEach(card => {
+                if (!card.type.toLowerCase().includes('land')) {
+                    let cmc = Math.min(6, Math.floor(card.cmc || 0));
+                    for (let i = 0; i < card.quantity; i++) {
+                        curve[cmc]++;
+                    }
+                }
+            });
+
+            manaCurveChart.data.datasets[0].data = curve;
+            manaCurveChart.update();
+        }
+
+        function saveDeck() {
+            console.log('Saving deck...');
+            if (currentDeck.length === 0 && currentSideboard.length === 0) {
+                alert('Your deck and sideboard are empty. Add some cards before saving.');
+                return;
+            }
+            if(!currentUser){
+                alert("Please login to save your decks")
+                return;
+            }
+
+            const deckData = {
+                name: deckName.value || 'Untitled Deck',
+                format: deckFormat.value,
+                cards: currentDeck,
+                sideboard: currentSideboard,
+                timestamp: new Date().toISOString()
+            };
+
+           if (currentUser) {
+                const deckToSave = {
+                    user_id: currentUser.id,
+                    deck_name: deckName.value || 'Untitled Deck',
+                    format: deckFormat.value,
+                    cards: currentDeck.map(card => ({
+                        card_name: card.name,
+                        quantity: card.quantity,
+                        board_type: 'main'
+                    })),
+                    sideboard: currentSideboard.map(card => ({
+                        card_name: card.name,
+                        quantity: card.quantity,
+                        board_type: 'side'
+                    }))
+                };
+
+                fetch('/save_deck', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(deckToSave)
+                })
+                .then(response => {
+                    if (response.ok) {
+                        alert('Deck saved successfully');
+                    } else {
+                        alert('Failed to save deck');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error saving deck:', error);
+                    alert('Failed to save deck due to a network error');
+                });
+            } else {
+                alert('Please log in to save your deck.');
+            }
+        }
+
+        function shareDeck() {
+            if (currentDeck.length === 0 && currentSideboard.length === 0) {
+                alert('Your deck and sideboard are empty. Add some cards before sharing.');
+                return;
+            }
+
+            // In a real app, this would generate a shareable link with a unique ID
+            // For this demo, we'll create a URL with the deck data encoded
+            const deckData = {
+                name: deckName.value || 'Untitled Deck',
+                format: deckFormat.value,
+                cards: currentDeck.map(card => ({
+                    id: card.id,
+                    quantity: card.quantity
+                })),
+                sideboard: currentSideboard.map(card => ({
+                    id: card.id,
+                    quantity: card.quantity
+                }))
+            };
+
+            const encodedDeck = btoa(JSON.stringify(deckData));
+            const shareUrl = `${window.location.origin}${window.location.pathname}?deck=${encodedDeck}`;
+
+            // Copy to clipboard
+            navigator.clipboard.writeText(shareUrl).then(() => {
+                alert('Share link copied to clipboard!\n\n' + shareUrl);
+            }).catch(() => {
+                prompt('Copy this link to share your deck:', shareUrl);
+            });
+        }
+
+        function loadSharedDeck(encodedDeck) {
+            try {
+                const deckData = JSON.parse(atob(encodedDeck));
+
+                // Clear current deck and sideboard
+                currentDeck = [];
+                currentSideboard = [];
+                deckName.value = deckData.name;
+                deckFormat.value = deckData.format || 'standard';
+
+                // For each card in the shared deck, we need to fetch its details
+                // This is a simplified version - in a real app you'd want better error handling
+                const fetchPromises = deckData.cards.map(card => {
+                    return fetch(`https://api.scryfall.com/cards/${card.id}`)
+                        .then(response => response.json())
+                        .then(cardData => {
+                            currentDeck.push({
+                                id: cardData.id,
+                                name: cardData.name,
+                                image: cardData.image_uris ? cardData.image_uris.normal : cardData.card_faces[0].image_uris.normal,
+                                type: cardData.type_line,
+                                mana_cost: cardData.mana_cost,
+                                colors: cardData.colors || [],
+                                cmc: cardData.cmc || 0,
+                                quantity: card.quantity
+                            });
+                        })
+                        .catch(error => {
+                            console.error('Error loading card:', card.id, error);
+                        });
+                });
+
+                // For each card in the shared sideboard, fetch its details
+                const sideboardPromises = deckData.sideboard.map(card => {
+                    return fetch(`https://api.scryfall.com/cards/${card.id}`)
+                        .then(response => response.json())
+                        .then(cardData => {
+                            currentSideboard.push({
+                                id: cardData.id,
+                                name: cardData.name,
+                                image: cardData.image_uris ? cardData.image_uris.normal : cardData.card_faces[0].image_uris.normal,
+                                type: cardData.type_line,
+                                mana_cost: cardData.mana_cost,
+                                colors: cardData.colors || [],
+                                cmc: cardData.cmc || 0,
+                                quantity: card.quantity
+                            });
+                        })
+                        .catch(error => {
+                            console.error('Error loading sideboard card:', card.id, error);
+                        });
+                });
+
+                Promise.all([...fetchPromises, ...sideboardPromises]).then(() => {
+                    updateDeckDisplay();
+                    updateSideboardDisplay();
+                });
+                updateCommanderDisplay();
+
+            } catch (error) {
+                console.error('Error loading shared deck:', error);
+                alert('Error loading shared deck. Creating a new deck instead.');
+                newDeck();
+            }
+        }
+
+        // User account functions
+        function toggleLoginModal() {
+            loginModal.classList.toggle('hidden');
+            if (!loginModal.classList.contains('hidden')) {
+                checkAuthStatus();
+            }
+        }
+
+        function checkAuthStatus() {
+            const user = JSON.parse(localStorage.getItem('mtgCurrentUser'));
+            if (user) {
+                currentUser = user;
+                loggedInUsername.textContent = user.username;
+                loginForm.classList.add('hidden');
+                registerForm.classList.add('hidden');
+                loggedInView.classList.remove('hidden');
+                myDecksBtn.classList.remove('hidden');
+                myDecksBtn.classList.add('inline-flex')
+
+
+            } else {
+                currentUser = null;
+                loginForm.classList.remove('hidden');
+                registerForm.classList.add('hidden');
+                loggedInView.classList.add('hidden');
+            }
+        }
+
+        function handleLogin() {
+            console.log('Attempting login...');
+            const email = loginEmail.value.trim();
+            const password = loginPassword.value.trim();
+
+            if (!email || !password) {
+                loginError.textContent = 'Please enter both email and password';
+                loginError.classList.remove('hidden');
+                return;
+            }
+
+            fetch('/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ email, password }),
+            })
+            .then(response => response.json().then(data => ({ status: response.status, body: data })))
+            .then(({ status, body }) => {
+                if (status === 200) { // Success
+                    currentUser = { id: body.user_id, username: body.username, email: email };
+                    localStorage.setItem('mtgCurrentUser', JSON.stringify(currentUser));
+                    loginError.classList.add('hidden');
+                    loginForm.classList.add('hidden');
+                    loggedInUsername.textContent = currentUser.username;
+                    loggedInView.classList.remove('hidden');
+                    loginEmail.value = '';
+                    loginPassword.value = '';
+                    myDecksBtn.classList.remove('hidden');
+                    myDecksBtn.classList.add('inline-flex');
+                } else {
+                    loginError.textContent = body.error || 'Login failed';
+                    loginError.classList.remove('hidden');
+                }
+            })
+            .catch(error => {
+                console.error('Login error:', error);
+                loginError.textContent = 'Login failed due to a network error';
+                loginError.classList.remove('hidden');
+            });
+        }
+
+        function handleRegister() {
+            console.log('Attempting registration...');
+            const username = registerUsername.value;
+            const email = registerEmail.value;
+            const password = registerPassword.value;
+            const registrationError = document.getElementById('registrationError');
+        
+            registrationError.classList.add('hidden');
+        
+            // Basic frontend validation
+            if (!username || !email || !password) {
+                registrationError.textContent = 'Please fill in all fields.';
+                registrationError.classList.remove('hidden');
+                return;
+            }
+        
+            // Send registration data to the backend
+            fetch('/register', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ username, email, password }),
+            })
+            .then(response => {
+                if (response.ok) {
+                    return response.json();
+                } else {
+                    return response.json().then(err => { throw err; });
+                }
+            })
+            .then(data => {
+                alert('User registered successfully');
+                // Handle successful registration (e.g., redirect to login, show success message)
+                // Clear the registration form
+                registerUsername.value = '';
+                registerEmail.value = '';
+                registerPassword.value = '';
+                handleLogin();
+                // Optionally clear the form here
+                registrationError.classList.add('hidden');
+            })
+            .catch(error => {
+                console.error('Registration error:', error);
+                if(error.error === 'Username or email already in use'){
+                    alert('Username or email already in use')
+                    registrationError.textContent = 'Username or email already in use';
+                    registrationError.classList.remove('hidden');
+                } else {
+                    alert('Registration failed.');
+                    registrationError.textContent = 'Registration failed.';
+                    registrationError.classList.remove('hidden');
+                }
+            });
+
+            loggedInUsername.textContent = username;
+            registerError.classList.add('hidden');
+            registerForm.classList.add('hidden');
+            loggedInView.classList.remove('hidden');
+            registerUsername.value = '';
+            registerEmail.value = '';
+            registerPassword.value = '';
+            myDecksBtn.classList.remove('hidden');
+            myDecksBtn.classList.add('inline-flex')
+
+        }
+
+        function handleLogout() {
+            localStorage.removeItem('mtgCurrentUser');
+            currentUser = null;
+            loginModal.classList.add('hidden');
+            checkAuthStatus();
+        }
+
+        function loadDecks() {
+            if (!currentUser) {
+                alert('Please log in to load your decks.');
+                return;
+            }
+
+            fetch(`/load_decks?user_id=${currentUser.id}`, {
+                method: 'GET',
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to load decks');
+                }
+                return response.json();
+            })
+            .then(decks => {
+                // Clear any existing decks
+                myDecksDiv.innerHTML = '';
+
+                if (decks.length === 0) {
+                    myDecksDiv.innerHTML = '<p>No decks found.</p>';
+                    return;
+                }
+
+                decks.forEach(deck => {
+                    const deckElement = document.createElement('div');
+                    deckElement.classList.add('border', 'p-4', 'mb-4');
+                    deckElement.innerHTML = `
+                        <h3>${deck.deck_name}</h3>
+                        <p>Format: ${deck.format}</p>
+                        <h4>Mainboard</h4>
+                        <ul>
+                            ${deck.cards.map(card => `<li>${card.quantity}x ${card.card_name}</li>`).join('')}
+                        </ul>
+                        <h4>Sideboard</h4>
+                        <ul>
+                            ${deck.sideboard.map(card => `<li>${card.quantity}x ${card.card_name}</li>`).join('')}
+                        </ul>
+                    `;
+                    myDecksDiv.appendChild(deckElement);
+                });
+
+                document.body.appendChild(myDecksDiv);
+            })
+            .catch(error => {
+                console.error('Error loading decks:', error);
+                alert('Failed to load decks.');
+            });
+
+            document.body.appendChild(myDecksDiv);
+            myDecksDiv.classList.remove('hidden');
+            if(!loginModal.classList.contains('hidden')){
+                loginModal.classList.add('hidden');
+            }
+
+        }
+
+        function loadUserDecks() {
+            if (!currentUser) return;
+
+            const decks = JSON.parse(localStorage.getItem(`mtgUserDecks_${currentUser.id}`) || '[]');
+
+            if (decks.length === 0) {
+                alert('You have no saved decks.');
+                return;
+            }
+
+            // In a real app, you would show a modal with the list of decks to choose from
+            // For this demo, we'll just load the most recent one
+            const mostRecentDeck = decks[decks.length - 1];
+
+            // Clear current deck and sideboard
+            currentDeck = [];
+            currentSideboard = [];
+            deckName.value = mostRecentDeck.name;
+            deckFormat.value = mostRecentDeck.format || 'standard';
+
+            // For each card in the deck, we need to fetch its details
+            const fetchPromises = mostRecentDeck.cards.map(card => {
+                return fetch(`https://api.scryfall.com/cards/${card.id}`)
+                    .then(response => response.json())
+                    .then(cardData => {
+                        currentDeck.push({
+                            id: cardData.id,
+                            name: cardData.name,
+                            image: cardData.image_uris ? cardData.image_uris.normal : cardData.card_faces[0].image_uris.normal,
+                            type: cardData.type_line,
+                            mana_cost: cardData.mana_cost,
+                            colors: cardData.colors || [],
+                            cmc: cardData.cmc || 0,
+                            quantity: card.quantity
+                        });
+                    })
+                    .catch(error => {
+                        console.error('Error loading card:', card.id, error);
+                    });
+            });
+
+            // For each card in the sideboard, fetch its details
+            const sideboardPromises = mostRecentDeck.sideboard.map(card => {
+                return fetch(`https://api.scryfall.com/cards/${card.id}`)
+                    .then(response => response.json())
+                    .then(cardData => {
+                        currentSideboard.push({
+                            id: cardData.id,
+                            name: cardData.name,
+                            image: cardData.image_uris ? cardData.image_uris.normal : cardData.card_faces[0].image_uris.normal,
+                            type: cardData.type_line,
+                            mana_cost: cardData.mana_cost,
+                            colors: cardData.colors || [],
+                            cmc: cardData.cmc || 0,
+                            quantity: card.quantity
+                        });
+                    })
+                    .catch(error => {
+                        console.error('Error loading sideboard card:', card.id, error);
+                    });
+            });
+
+            Promise.all([...fetchPromises, ...sideboardPromises]).then(() => {
+                updateDeckDisplay();
+                updateSideboardDisplay();
+                loginModal.classList.add('hidden');
+            });
+        }
+    </script>
+</body>
+</html>
